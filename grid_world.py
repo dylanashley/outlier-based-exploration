@@ -138,10 +138,10 @@ class GridWorld:
         last_state = (self.sample_x, self.sample_y)
         self._take_action(action)
         if self._is_done():
-            reward = 1
+            reward = 0
             done = True
         else:
-            reward = 0
+            reward = -1
             done = False
         gamma = self.gamma
         state = (self.sample_x, self.sample_y)
