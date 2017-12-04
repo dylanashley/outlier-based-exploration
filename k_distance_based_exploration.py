@@ -112,10 +112,10 @@ def main(args):
             visitations[domain.x, domain.y] += 1
 
             # add new state to grid
-            lof = lof_grid.insert(state)
+            k_distance = lof_grid.insert(state, only_k_distance=True)
 
             # get delta
-            delta = (np.exp(abs(lof - 1)) - 1) - Q[action]
+            delta = k_distance - Q[action]
 
             # update traces for visited features
             for i in F[:, action]:

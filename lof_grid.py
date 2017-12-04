@@ -227,7 +227,7 @@ class LOFGrid:
         # cardinality should never change so return tuple
         return tuple(rv)
 
-    def insert(self, point):
+    def insert(self, point, only_k_distance=False):
         point_id = len(self._points)
         self._points.append(point)
         cell = self._point_to_cell(point_id)
@@ -243,5 +243,9 @@ class LOFGrid:
                         other_cell)
             self._cells[other_cell]['k_distance'] = new_k_distance
 
-        # return current local outlier factor of new point
-        return self._lof(point_id)
+        if only_k_distance:
+            # return k-distance of new point
+            return self._point_k_distance(point_id)
+        else:
+            # return current local outlier factor of new point
+            return self._lof(point_id)

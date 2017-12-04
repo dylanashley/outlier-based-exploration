@@ -11,9 +11,9 @@ from lof_grid import LOFGrid
 from tile_coder import TileCoder
 
 LAMBDA = 0.9
-MU = 0.1
+MU = 0.25
 NUMBER_OF_ACTIONS = 4
-NUMBER_OF_EPISODES = 10000
+NUMBER_OF_EPISODES = 100000
 PI = 0.0
 GAMMA = 0.9
 
@@ -85,10 +85,8 @@ def main(args):
         print()
 
     # if requested then print policy correctness
-    if args['print']:
+    if args['policy']:
         print_policy_correctness()
-
-    print('episode,performance')
 
     for episode in range(NUMBER_OF_EPISODES):
 
@@ -118,7 +116,7 @@ def main(args):
             if (np.random.rand() > MU):
                 action = greedy_action
             else:
-                action = np.random.randint(NUMBER_OF_ACTIONS - 1)
+                action = np.random.randint(NUMBER_OF_ACTIONS)
             if (action != greedy_action):
                 e.fill(0)
 
@@ -153,19 +151,20 @@ def main(args):
             theta += ALPHA * delta * e
             e *= GAMMA * LAMBDA
 
-        print('{},{}'.format(
-            episode + 1, (max(visitations.flat) - min(visitations.flat)) / sum(
-                visitations.flat)))
+        # if requested then print performance metric
+        if args['performance']:
+            print(min(visitations.flat) / sum(visitations.flat))
 
     # if requested then print policy correctness
-    if args['print']:
+    if args['policy']:
         print_policy_correctness()
 
 
 def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument('-s', '--seed', type=int)
-    parser.add_argument('-p', '--print', action='store_true')
+    parser.add_argument('--policy', action='store_true')
+    parser.add_argument('--performance', action='store_true')
     return vars(parser.parse_args())
 
 
@@ -184,7 +183,8 @@ if __name__ == '__main__':
     if hasattr(signal, 'SIGINFO'):
         signal.signal(
             signal.SIGINFO,
-            lambda signum, frame: sys.stderr.write(siginfo_message + '\n'))
+            lambda signum, frame: sys.stderr.write('{}\n'.format(siginfo_message))
+        )
 
     # parse args and run
     main(args)

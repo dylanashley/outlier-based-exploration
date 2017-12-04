@@ -29,8 +29,6 @@ def main(args):
     # make table to track state visitations
     visitations = np.zeros((domain.x_card, domain.y_card), dtype=int)
 
-    print('episode,performance')
-
     for episode in range(NUMBER_OF_EPISODES):
 
         # reset learner and domain
@@ -51,7 +49,7 @@ def main(args):
                 domain.y_goal, step)
 
             # take the action
-            _, done = domain.step(np.random.randint(NUMBER_OF_ACTIONS - 1))
+            _, done = domain.step(np.random.randint(NUMBER_OF_ACTIONS))
 
             # update state visitations
             visitations[domain.x, domain.y] += 1
@@ -60,9 +58,7 @@ def main(args):
             if done:
                 break
 
-        print('{},{}'.format(
-            episode + 1, (max(visitations.flat) - min(visitations.flat)) / sum(
-                visitations.flat)))
+        print(np.std(visitations))
 
 
 def parse_args():
@@ -86,7 +82,8 @@ if __name__ == '__main__':
     if hasattr(signal, 'SIGINFO'):
         signal.signal(
             signal.SIGINFO,
-            lambda signum, frame: sys.stderr.write(siginfo_message + '\n'))
+            lambda signum, frame: sys.stderr.write('{}\n'.format(siginfo_message))
+        )
 
     # parse args and run
     main(args)
