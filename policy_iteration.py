@@ -11,13 +11,12 @@ from lof_grid import LOFGrid
 from tile_coder import TileCoder
 
 LAMBDA = 0.9
-MU = 0.25
+MU = 0.1
 NUMBER_OF_ACTIONS = 4
-NUMBER_OF_EPISODES = 100000
 PI = 0.0
 GAMMA = 0.9
 
-NUMBER_OF_TILINGS = 10
+NUMBER_OF_TILINGS = 1
 TILING_CARDINALITY = 10
 
 DOMAIN_X_CARD = 5
@@ -88,7 +87,7 @@ def main(args):
     if args['policy']:
         print_policy_correctness()
 
-    for episode in range(NUMBER_OF_EPISODES):
+    for episode in range(args['episodes']):
 
         # reset learner and domain
         state = domain.new_episode()
@@ -104,8 +103,8 @@ def main(args):
 
             # set message for siginfo
             siginfo_message = '[{0:3.2f}%] EPISODE: {1} of {2}, POS: ({3}, {4}), GOAL: ({5}, {6}), STEPS: {7}'.format(
-                100 * episode / NUMBER_OF_EPISODES, episode + 1,
-                NUMBER_OF_EPISODES, domain.x, domain.y, domain.x_goal,
+                100 * episode / args['episodes'], episode + 1,
+                args['episodes'], domain.x, domain.y, domain.x_goal,
                 domain.y_goal, step)
 
             # populate f and q
@@ -152,8 +151,8 @@ def main(args):
             e *= GAMMA * LAMBDA
 
         # if requested then print performance metric
-        if args['performance']:
-            print(min(visitations.flat) / sum(visitations.flat))
+        if not args['policy']:
+            print(np.std(visitations))
 
     # if requested then print policy correctness
     if args['policy']:
@@ -164,7 +163,7 @@ def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument('-s', '--seed', type=int)
     parser.add_argument('--policy', action='store_true')
-    parser.add_argument('--performance', action='store_true')
+    parser.add_argument('-n', '--episodes', type=int, default=10)
     return vars(parser.parse_args())
 
 

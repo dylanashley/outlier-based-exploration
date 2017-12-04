@@ -11,13 +11,13 @@ from lof_grid import LOFGrid
 from tile_coder import TileCoder
 
 LAMBDA = 0.9
-MU = 0.25
+MU = 0.1
 NUMBER_OF_ACTIONS = 4
 NUMBER_OF_EPISODES = 10
 PI = 0.0
 GAMMA = 0.9
 
-NUMBER_OF_TILINGS = 10
+NUMBER_OF_TILINGS = 1
 TILING_CARDINALITY = 10
 
 DOMAIN_X_CARD = 5
