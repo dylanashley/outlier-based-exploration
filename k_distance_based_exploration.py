@@ -13,7 +13,7 @@ from tile_coder import TileCoder
 LAMBDA = 0.9
 MU = 0.1
 NUMBER_OF_ACTIONS = 4
-NUMBER_OF_EPISODES = 10
+NUMBER_OF_EPISODES = 25
 PI = 0.0
 GAMMA = 0.9
 
@@ -69,6 +69,8 @@ def main(args):
 
     # make table to track state visitations
     visitations = np.zeros((domain.x_card, domain.y_card), dtype=int)
+    all_visitations = np.zeros(
+        (NUMBER_OF_EPISODES, domain.x_card, domain.y_card), dtype=int)
 
     for episode in range(NUMBER_OF_EPISODES):
 
@@ -139,11 +141,15 @@ def main(args):
             theta += ALPHA * delta * e
             e *= GAMMA * LAMBDA
 
-        print(np.std(visitations))
+        np.copyto(all_visitations[episode, :, :], visitations)
+
+    with open(args['filename'], 'wb') as outfile:
+        np.save(outfile, all_visitations)
 
 
 def parse_args():
     parser = argparse.ArgumentParser()
+    parser.add_argument('filename')
     parser.add_argument('-s', '--seed', type=int)
     return vars(parser.parse_args())
 

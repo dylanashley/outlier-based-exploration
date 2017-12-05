@@ -9,7 +9,7 @@ import sys
 from grid_world import GridWorld
 
 NUMBER_OF_ACTIONS = 4
-NUMBER_OF_EPISODES = 10
+NUMBER_OF_EPISODES = 25
 
 DOMAIN_X_CARD = 5
 DOMAIN_Y_CARD = 5
@@ -28,6 +28,8 @@ def main(args):
 
     # make table to track state visitations
     visitations = np.zeros((domain.x_card, domain.y_card), dtype=int)
+    all_visitations = np.zeros(
+        (NUMBER_OF_EPISODES, domain.x_card, domain.y_card), dtype=int)
 
     for episode in range(NUMBER_OF_EPISODES):
 
@@ -58,11 +60,15 @@ def main(args):
             if done:
                 break
 
-        print(np.std(visitations))
+        np.copyto(all_visitations[episode, :, :], visitations)
+
+    with open(args['filename'], 'wb') as outfile:
+        np.save(outfile, all_visitations)
 
 
 def parse_args():
     parser = argparse.ArgumentParser()
+    parser.add_argument('filename')
     parser.add_argument('-s', '--seed', type=int)
     return vars(parser.parse_args())
 

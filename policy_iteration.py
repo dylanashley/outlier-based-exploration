@@ -59,7 +59,10 @@ def main(args):
                 Q[j] += theta[F[i, j]]
 
     # make table to track state visitations
-    visitations = np.zeros((domain.x_card, domain.y_card), dtype=int)
+    if not args['policy']:
+        visitations = np.zeros((domain.x_card, domain.y_card), dtype=int)
+        all_visitations = np.zeros(
+            (args['episodes'], domain.x_card, domain.y_card), dtype=int)
 
     # make helper function to print evaluation of policy
     def print_policy_correctness():
@@ -123,7 +126,8 @@ def main(args):
             (last_state, reward, _, state), done = domain.step(action)
 
             # update state visitations
-            visitations[domain.x, domain.y] += 1
+            if not args['policy']:
+                visitations[domain.x, domain.y] += 1
 
             # get delta
             delta = reward - Q[action]
@@ -150,20 +154,24 @@ def main(args):
             theta += ALPHA * delta * e
             e *= GAMMA * LAMBDA
 
-        # if requested then print performance metric
         if not args['policy']:
-            print(np.std(visitations))
+            np.copyto(all_visitations[episode, :, :], visitations)
 
     # if requested then print policy correctness
     if args['policy']:
         print_policy_correctness()
 
+    if not args['policy']:
+        with open(args['filename'], 'wb') as outfile:
+            np.save(outfile, all_visitations)
+
 
 def parse_args():
     parser = argparse.ArgumentParser()
+    parser.add_argument('filename')
     parser.add_argument('-s', '--seed', type=int)
     parser.add_argument('--policy', action='store_true')
-    parser.add_argument('-n', '--episodes', type=int, default=10)
+    parser.add_argument('-n', '--episodes', type=int, default=25)
     return vars(parser.parse_args())
 
 
