@@ -46,7 +46,7 @@ def main(args):
     e = np.zeros(tile_coder.tile_count * NUMBER_OF_ACTIONS)
     F = np.zeros((NUMBER_OF_TILINGS, NUMBER_OF_ACTIONS), dtype=int)
     Q = np.zeros(NUMBER_OF_ACTIONS)
-    theta = np.random.rand(tile_coder.tile_count * NUMBER_OF_ACTIONS) * 0.01
+    theta = np.zeros(tile_coder.tile_count * NUMBER_OF_ACTIONS)
 
     # make function to populate f and q
     def populate(state, F, Q):

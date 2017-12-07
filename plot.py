@@ -102,11 +102,11 @@ ax.errorbar(
     np.nanmean(lof_based_exploration_std, axis=0),
     yerr=st.sem(lof_based_exploration_std, axis=0, nan_policy='omit'),
     label='LOF')
-# ax.errorbar(
-#     episodes,
-#     np.nanmean(policy_iteration_std, axis=0),
-#     yerr=st.sem(policy_iteration_std, axis=0, nan_policy='omit'),
-#     label='Policy Iteration')
+ax.errorbar(
+    episodes,
+    np.nanmean(policy_iteration_std, axis=0),
+    yerr=st.sem(policy_iteration_std, axis=0, nan_policy='omit'),
+    label='Policy Iteration')
 ax.errorbar(
     episodes,
     np.nanmean(random_exploration_std, axis=0),
@@ -129,11 +129,11 @@ ax.errorbar(
     np.nanmean(lof_based_exploration_count, axis=0),
     yerr=st.sem(lof_based_exploration_count, axis=0, nan_policy='omit'),
     label='LOF')
-# ax.errorbar(
-#     episodes,
-#     np.nanmean(policy_iteration_count, axis=0),
-#     yerr=st.sem(policy_iteration_count, axis=0, nan_policy='omit'),
-#     label='Policy Iteration')
+ax.errorbar(
+    episodes,
+    np.nanmean(policy_iteration_count, axis=0),
+    yerr=st.sem(policy_iteration_count, axis=0, nan_policy='omit'),
+    label='Policy Iteration')
 ax.errorbar(
     episodes,
     np.nanmean(random_exploration_count, axis=0),
