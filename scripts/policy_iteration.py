@@ -7,13 +7,11 @@ import signal
 import sys
 
 from grid_world import GridWorld
-from lof_grid import LOFGrid
 from tile_coder import TileCoder
 
 LAMBDA = 0.9
 MU = 0.1
 NUMBER_OF_ACTIONS = 4
-NUMBER_OF_EPISODES = 25
 PI = 0.0
 GAMMA = 0.9
 
@@ -27,7 +25,7 @@ DOMAIN_Y_START = 0
 DOMAIN_X_GOAL = 2
 DOMAIN_Y_GOAL = 2
 
-ALPHA = 0.5 / NUMBER_OF_TILINGS
+ALPHA = 0.1 / NUMBER_OF_TILINGS
 EPSILON_ACTION_SELECTION_PROBABILITY = PI / NUMBER_OF_ACTIONS
 GREEDY_ACTION_SELECTION_PROBABILITY = (
     1 - PI) + EPSILON_ACTION_SELECTION_PROBABILITY
@@ -43,19 +41,11 @@ def main(args):
     # build tile coder
     tile_coder = TileCoder(TILING_CARDINALITY, NUMBER_OF_TILINGS)
 
-    # build grid
-    grid_card = (10, 10)
-    grid_k = 20
-    init_points = list()
-    for _ in range(grid_k + 1):
-        init_points.append(domain.new_episode())
-    lof_grid = LOFGrid(grid_card, grid_k, init_points)
-
     # make arrays to save reallocation later
     e = np.zeros(tile_coder.tile_count * NUMBER_OF_ACTIONS)
     F = np.zeros((NUMBER_OF_TILINGS, NUMBER_OF_ACTIONS), dtype=int)
     Q = np.zeros(NUMBER_OF_ACTIONS)
-    theta = np.random.rand(tile_coder.tile_count * NUMBER_OF_ACTIONS) * 0.01
+    theta = np.zeros(tile_coder.tile_count * NUMBER_OF_ACTIONS)
 
     # make function to populate f and q
     def populate(state, F, Q):
@@ -68,11 +58,38 @@ def main(args):
                 Q[j] += theta[F[i, j]]
 
     # make table to track state visitations
-    visitations = np.zeros((domain.x_card, domain.y_card), dtype=int)
-    all_visitations = np.zeros(
-        (NUMBER_OF_EPISODES, domain.x_card, domain.y_card), dtype=int)
+    if not args['policy']:
+        visitations = np.zeros((domain.x_card, domain.y_card), dtype=int)
+        all_visitations = np.zeros(
+            (args['episodes'], domain.x_card, domain.y_card), dtype=int)
 
-    for episode in range(NUMBER_OF_EPISODES):
+    # make helper function to print evaluation of policy
+    def print_policy_correctness():
+        for y in range(domain.y_card):
+            for x in range(domain.x_card):
+                if (x == domain.x_goal) and (y == domain.y_goal):
+                    print('Goal', end=' ')
+                else:
+                    state = domain._coord_to_normalized(x, y)
+                    populate(state, F, Q)
+                    optimal_probs = np.zeros(NUMBER_OF_ACTIONS)
+                    if x > domain.x_goal:
+                        optimal_probs[domain.WEST] += 1
+                    if x < domain.x_goal:
+                        optimal_probs[domain.EAST] += 1
+                    if y > domain.y_goal:
+                        optimal_probs[domain.NORTH] += 1
+                    if y < domain.y_goal:
+                        optimal_probs[domain.SOUTH] += 1
+                    print(bool(optimal_probs[np.argmax(Q)]), end=' ')
+            print()
+        print()
+
+    # if requested then print policy correctness
+    if args['policy']:
+        print_policy_correctness()
+
+    for episode in range(args['episodes']):
 
         # reset learner and domain
         state = domain.new_episode()
@@ -81,9 +98,6 @@ def main(args):
         # update state visitations
         visitations[domain.x, domain.y] += 1
 
-        # add new state to grid
-        lof_grid.insert(state)
-
         # run episode
         step = 0
         while True:
@@ -91,8 +105,8 @@ def main(args):
 
             # set message for siginfo
             siginfo_message = '[{0:3.2f}%] EPISODE: {1} of {2}, POS: ({3}, {4}), GOAL: ({5}, {6}), STEPS: {7}'.format(
-                100 * episode / NUMBER_OF_EPISODES, episode + 1,
-                NUMBER_OF_EPISODES, domain.x, domain.y, domain.x_goal,
+                100 * episode / args['episodes'], episode + 1,
+                args['episodes'], domain.x, domain.y, domain.x_goal,
                 domain.y_goal, step)
 
             # populate f and q
@@ -108,16 +122,14 @@ def main(args):
                 e.fill(0)
 
             # take the action
-            (last_state, _, _, state), done = domain.step(action)
+            (last_state, reward, _, state), done = domain.step(action)
 
             # update state visitations
-            visitations[domain.x, domain.y] += 1
-
-            # add new state to grid
-            lof = lof_grid.insert(state)
+            if not args['policy']:
+                visitations[domain.x, domain.y] += 1
 
             # get delta
-            delta = (np.exp(abs(lof - 1)) - 1) - Q[action]
+            delta = reward - Q[action]
 
             # update traces for visited features
             for i in F[:, action]:
@@ -141,16 +153,24 @@ def main(args):
             theta += ALPHA * delta * e
             e *= GAMMA * LAMBDA
 
-        np.copyto(all_visitations[episode, :, :], visitations)
+        if not args['policy']:
+            np.copyto(all_visitations[episode, :, :], visitations)
 
-    with open(args['filename'], 'wb') as outfile:
-        np.save(outfile, all_visitations)
+    # if requested then print policy correctness
+    if args['policy']:
+        print_policy_correctness()
+
+    if not args['policy']:
+        with open(args['filename'], 'wb') as outfile:
+            np.save(outfile, all_visitations)
 
 
 def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument('filename')
     parser.add_argument('-s', '--seed', type=int)
+    parser.add_argument('--policy', action='store_true')
+    parser.add_argument('-n', '--episodes', type=int, default=25)
     return vars(parser.parse_args())
 
 

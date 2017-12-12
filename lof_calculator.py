@@ -1,14 +1,141 @@
 # -*- coding: ascii -*-
 
+import abc
 import itertools
 import numpy as np
 
 from tools import scale
 
+__all__ = ['LOFCalculator', 'GridLOFCalculator']
+
 EPS = 1e-9
 
 
-class LOFGrid:
+class AbstractLOFCalculator(metaclass=abc.ABCMeta):
+    def __len__(self):
+        return len(self._points)
+
+    def _is_valid_point(self, point):
+        """Return validity of point if internal structure is correct."""
+        if not len(self._points[0]) == len(point):
+            return False
+        for i in range(len(self._points[0])):
+            if not 0 <= point[i] <= self.ranges[i]:
+                return False
+        return True
+
+    def _is_valid_point_id(self, point_id):
+        """Return validity of point if internal structure is correct."""
+        return len(self._points) > point_id
+
+    def _point_k_distance(self, point_id):
+        assert (self._is_valid_point_id(point_id))
+
+        # get distance to farthest kNN
+        max_distance = 0
+        for other_id in self._kNN(point_id):
+            distance = self._point_distance(point_id, other_id)
+            max_distance = max(max_distance, distance)
+        return max_distance
+
+    def _lof(self, point_id):
+        assert (self._is_valid_point_id(point_id))
+
+        # use equation to calculate local outlier factor
+        rv = 0
+        for other_id in self._kNN(point_id):
+            rv += self._lrd(other_id)
+        return rv / max(self.k * self._lrd(point_id), EPS)
+
+    def _lrd(self, point_id):
+        assert (self._is_valid_point_id(point_id))
+
+        # use equation to calculate local reachability density
+        kNN = self._kNN(point_id)
+        rv = 0
+        for other_id in kNN:
+            distance = self._point_distance(point_id, other_id)
+            k_distance = self._point_k_distance(other_id)
+            rv += max(distance, k_distance)
+        return self.k / max(rv, EPS)
+
+    @abc.abstractmethod
+    def _kNN(self, point_id):
+        pass
+
+    @abc.abstractmethod
+    def _point_distance(self, first_id, second_id):
+        pass
+
+    @abc.abstractmethod
+    def insert(self, point, rv=None):
+        pass
+
+
+class LOFCalculator(AbstractLOFCalculator):
+    def __init__(self, k, init_points, ranges=None):
+        assert (k > 0)
+        assert (len(init_points) > k)
+        for i in range(1, len(init_points)):
+            assert (len(init_points[0]) == len(init_points[i]))
+            for j in range(len(init_points[0])):
+                if ranges is not None:
+                    assert (0 <= init_points[i][j] <= ranges[j])
+                else:
+                    assert (0 <= init_points[i][j] <= 1)
+
+        # save args
+        self.k = k
+        if ranges is None:
+            self.ranges = tuple((1 for _ in range(len(init_points[0]))))
+        else:
+            self.ranges = ranges
+
+        # add initial points
+        self._points = list()
+        for point in init_points:
+            self._points.append(point)
+
+    def _kNN(self, point_id):
+        assert (self._is_valid_point_id(point_id))
+
+        # extract kNN from candidate points
+        rv = sorted(
+            [
+                other_id for other_id in range(len(self._points))
+                if other_id != point_id
+            ],
+            key=lambda other_id: self._point_distance(point_id, other_id))
+        return set(rv[:self.k])
+
+    def _point_distance(self, first_id, second_id):
+        assert (self._is_valid_point_id(first_id))
+        assert (self._is_valid_point_id(second_id))
+
+        # get euclidean distance between points
+        rv = 0
+        for i in range(len(self._points[0])):
+            rv += (self._points[first_id][i] - self._points[second_id][i])**2
+        return np.sqrt(rv)
+
+    def insert(self, point, rv=None):
+        assert (self._is_valid_point(point))
+        assert (rv in {'k-distance', 'LOF', None})
+
+        point_id = len(self._points)
+        self._points.append(point)
+
+        if rv == 'k-distance':
+            # return k-distance of new point
+            return self._point_k_distance(point_id)
+        elif rv == 'LOF':
+            # return current local outlier factor of new point
+            return self._lof(point_id)
+        else:
+            return
+
+
+class GridLOFCalculator(AbstractLOFCalculator):
     def __init__(self, card, k, init_points, ranges=None):
         assert (k > 0)
         assert (len(init_points) > k)
@@ -60,9 +187,6 @@ class LOFGrid:
                 for other_cell in self._cells[cell]['poc'][i]:
                     self._cells[other_cell]['kRNN_candidate_cells'].add(cell)
 
-    def __len__(self):
-        return len(self._points)
-
     def _all_cells_in_hypercube(self, top_left, bottom_right):
         assert (self._is_valid_cell(top_left))
         assert (self._is_valid_cell(bottom_right))
@@ -98,7 +222,7 @@ class LOFGrid:
             for cell in self._cells[start_cell]['poc'][i]:
                 point_count += len(self._cells[cell]['points'])
             i += 1  # end with increment to handle corner points
-        return min(i, len(self._cells[start_cell]['poc']) - 1)
+        return min(i + 1, len(self._cells[start_cell]['poc']) - 1)
 
     def _is_valid_cell(self, cell):
         """Return validity of cell if internal structure is correct."""
@@ -108,16 +232,6 @@ class LOFGrid:
             if (0 > cell[i]) or (cell[i] >= self.card[i]):
                 return False
         return True
-
-    def _is_valid_point(self, point):
-        """Return validity of point if internal structure is correct."""
-        assert (len(card) == len(point))
-        for i in range(len(card)):
-            assert (0 <= point[i] <= self.ranges[i])
-
-    def _is_valid_point_id(self, point_id):
-        """Return validity of point if internal structure is correct."""
-        return len(self._points) > point_id
 
     def _kNN(self, point_id):
         assert (self._is_valid_point_id(point_id))
@@ -134,50 +248,6 @@ class LOFGrid:
             list(rv),
             key=lambda other_id: self._point_distance(point_id, other_id))
         return set(rv[:self.k])
-
-    def _kRNN(self, point_id):
-        assert (self._is_valid_point_id(point_id))
-
-        # get all points in all candidate cells
-        cell = self._point_to_cell(point_id)
-        kRNN_candidate_cells = self._cells[cell]['kRNN_candidate_cells']
-        rv = set()
-        for other_cell in kRNN_candidate_cells:
-            for other_id in self._cells[other_cell]['points']:
-                if point_id in self._kNN(other_id):
-                    rv.add(other_id)
-        return rv
-
-    def _point_k_distance(self, point_id):
-        assert (self._is_valid_point_id(point_id))
-
-        # get distance to farthest kNN
-        max_distance = 0
-        for other_id in self._kNN(point_id):
-            distance = self._point_distance(point_id, other_id)
-            max_distance = max(max_distance, distance)
-        return max_distance
-
-    def _lof(self, point_id):
-        assert (self._is_valid_point_id(point_id))
-
-        # use equation to calculate local outlier factor
-        rv = 0
-        for other_id in self._kNN(point_id):
-            rv += self._lrd(other_id)
-        return rv / max(self.k * self._lrd(point_id), EPS)
-
-    def _lrd(self, point_id):
-        assert (self._is_valid_point_id(point_id))
-
-        # use equation to calculate local reachability density
-        kNN = self._kNN(point_id)
-        rv = 0
-        for other_id in kNN:
-            distance = self._point_distance(point_id, other_id)
-            k_distance = self._point_k_distance(other_id)
-            rv += max(distance, k_distance)
-        return self.k / max(rv, EPS)
 
     def _point_distance(self, first_id, second_id):
         assert (self._is_valid_point_id(first_id))
@@ -227,7 +297,10 @@ class LOFGrid:
         # cardinality should never change so return tuple
         return tuple(rv)
 
-    def insert(self, point, only_k_distance=False):
+    def insert(self, point, rv=None):
+        assert (self._is_valid_point(point))
+        assert (rv in {'k-distance', 'LOF', None})
+
         point_id = len(self._points)
         self._points.append(point)
         cell = self._point_to_cell(point_id)
@@ -243,9 +316,11 @@ class LOFGrid:
                         other_cell)
             self._cells[other_cell]['k_distance'] = new_k_distance
 
-        if only_k_distance:
+        if rv == 'k-distance':
             # return k-distance of new point
             return self._point_k_distance(point_id)
-        else:
+        elif rv == 'LOF':
             # return current local outlier factor of new point
             return self._lof(point_id)
+        else:
+            return

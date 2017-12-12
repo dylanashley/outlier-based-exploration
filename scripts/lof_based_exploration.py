@@ -7,7 +7,7 @@ import signal
 import sys
 
 from grid_world import GridWorld
-from lof_grid import LOFGrid
+from lof_calculator import *
 from tile_coder import TileCoder
 
 LAMBDA = 0.9
@@ -43,13 +43,17 @@ def main(args):
     # build tile coder
     tile_coder = TileCoder(TILING_CARDINALITY, NUMBER_OF_TILINGS)
 
-    # build grid
+    # build lof calculator
     grid_card = (10, 10)
-    grid_k = 20
+    k = 20
     init_points = list()
-    for _ in range(grid_k + 1):
-        init_points.append(domain.new_episode())
-    lof_grid = LOFGrid(grid_card, grid_k, init_points)
+    for _ in range(k + 1):
+        (last_state, _, _, state), done = domain.step(
+            np.random.randint(NUMBER_OF_ACTIONS))
+        init_points.insert(last_state)
+        if done:
+            domain.new_episode()
+    lof_calculator = GridLOFCalculator(grid_card, k, init_points)
 
     # make arrays to save reallocation later
     e = np.zeros(tile_coder.tile_count * NUMBER_OF_ACTIONS)
@@ -82,7 +86,7 @@ def main(args):
         visitations[domain.x, domain.y] += 1
 
         # add new state to grid
-        lof_grid.insert(state)
+        lof_calculator.insert(state)
 
         # run episode
         step = 0
@@ -114,10 +118,10 @@ def main(args):
             visitations[domain.x, domain.y] += 1
 
             # add new state to grid
-            k_distance = lof_grid.insert(state, only_k_distance=True)
+            lof = lof_calculator.insert(state, rv='LOF')
 
             # get delta
-            delta = k_distance - Q[action]
+            delta = (np.exp(abs(lof - 1)) - 1) - Q[action]
 
             # update traces for visited features
             for i in F[:, action]:
