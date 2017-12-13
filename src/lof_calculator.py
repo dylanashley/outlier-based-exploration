@@ -4,7 +4,7 @@ import abc
 import itertools
 import numpy as np
 
-from tools import scale
+from scale import scale
 
 __all__ = ['LOFCalculator', 'GridLOFCalculator']
 
@@ -27,6 +27,20 @@ class AbstractLOFCalculator(metaclass=abc.ABCMeta):
     def _is_valid_point_id(self, point_id):
         """Return validity of point if internal structure is correct."""
         return len(self._points) > point_id
+
+    @abc.abstractmethod
+    def _kNN(self, point_id):
+        pass
+
+    def _point_distance(self, first_id, second_id):
+        assert (self._is_valid_point_id(first_id))
+        assert (self._is_valid_point_id(second_id))
+
+        # get euclidean distance between points
+        rv = 0
+        for i in range(len(self._points[0])):
+            rv += (self._points[first_id][i] - self._points[second_id][i])**2
+        return np.sqrt(rv)
 
     def _point_k_distance(self, point_id):
         assert (self._is_valid_point_id(point_id))
@@ -58,14 +72,6 @@ class AbstractLOFCalculator(metaclass=abc.ABCMeta):
             k_distance = self._point_k_distance(other_id)
             rv += max(distance, k_distance)
         return self.k / max(rv, EPS)
-
-    @abc.abstractmethod
-    def _kNN(self, point_id):
-        pass
-
-    @abc.abstractmethod
-    def _point_distance(self, first_id, second_id):
-        pass
 
     @abc.abstractmethod
     def insert(self, point, rv=None):
@@ -107,16 +113,6 @@ class LOFCalculator(AbstractLOFCalculator):
             ],
             key=lambda other_id: self._point_distance(point_id, other_id))
         return set(rv[:self.k])
-
-    def _point_distance(self, first_id, second_id):
-        assert (self._is_valid_point_id(first_id))
-        assert (self._is_valid_point_id(second_id))
-
-        # get euclidean distance between points
-        rv = 0
-        for i in range(len(self._points[0])):
-            rv += (self._points[first_id][i] - self._points[second_id][i])**2
-        return np.sqrt(rv)
 
     def insert(self, point, rv=None):
         assert (self._is_valid_point(point))
@@ -248,16 +244,6 @@ class GridLOFCalculator(AbstractLOFCalculator):
             list(rv),
             key=lambda other_id: self._point_distance(point_id, other_id))
         return set(rv[:self.k])
-
-    def _point_distance(self, first_id, second_id):
-        assert (self._is_valid_point_id(first_id))
-        assert (self._is_valid_point_id(second_id))
-
-        # get euclidean distance between points
-        rv = 0
-        for i in range(len(self.card)):
-            rv += (self._points[first_id][i] - self._points[second_id][i])**2
-        return np.sqrt(rv)
 
     def _point_to_cell(self, point_id):
         assert (self._is_valid_point_id(point_id))

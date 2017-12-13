@@ -49,7 +49,7 @@ def main(args):
     for _ in range(k + 1):
         (last_state, _, _, state), done = domain.step(
             np.random.randint(NUMBER_OF_ACTIONS))
-        init_points.insert((*last_state, *state))
+        init_points.append((*last_state, *state))
         if done:
             domain.new_episode()
     lof_calculator = LOFCalculator(k, init_points)

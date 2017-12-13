@@ -44,15 +44,16 @@ def main(args):
     tile_coder = TileCoder(TILING_CARDINALITY, NUMBER_OF_TILINGS)
 
     # build lof calculator
+    grid_card = (10, 10)
     k = 20
     init_points = list()
     for _ in range(k + 1):
         (last_state, _, _, state), done = domain.step(
             np.random.randint(NUMBER_OF_ACTIONS))
-        init_points.insert((*last_state, *state))
+        init_points.append(last_state)
         if done:
             domain.new_episode()
-    lof_calculator = LOFCalculator(k, init_points)
+    lof_calculator = GridLOFCalculator(grid_card, k, init_points)
 
     # make arrays to save reallocation later
     e = np.zeros(tile_coder.tile_count * NUMBER_OF_ACTIONS)
@@ -84,6 +85,9 @@ def main(args):
         # update state visitations
         visitations[domain.x, domain.y] += 1
 
+        # add new state to grid
+        lof_calculator.insert(state)
+
         # run episode
         step = 0
         while True:
@@ -114,8 +118,7 @@ def main(args):
             visitations[domain.x, domain.y] += 1
 
             # add new state to grid
-            k_distance = lof_calculator.insert(
-                (*last_state, *state), rv='k_distance')
+            k_distance = lof_calculator.insert(state, rv='k-distance')
 
             # get delta
             delta = k_distance - Q[action]
