@@ -57,11 +57,9 @@ def main(args):
             for j in range(NUMBER_OF_ACTIONS):
                 Q[j] += theta[F[i, j]]
 
-    # make table to track state visitations
+    # make list to track state visitations
     if not args['policy']:
-        visitations = np.zeros((domain.x_card, domain.y_card), dtype=int)
-        all_visitations = np.zeros(
-            (args['episodes'], domain.x_card, domain.y_card), dtype=int)
+        visitations = list()
 
     # make helper function to print evaluation of policy
     def print_policy_correctness():
@@ -96,7 +94,7 @@ def main(args):
         e.fill(0)
 
         # update state visitations
-        visitations[domain.x, domain.y] += 1
+        visitations.append((domain.x, domain.y))
 
         # run episode
         step = 0
@@ -126,7 +124,7 @@ def main(args):
 
             # update state visitations
             if not args['policy']:
-                visitations[domain.x, domain.y] += 1
+                visitations.append((domain.x, domain.y))
 
             # get delta
             delta = reward - Q[action]
@@ -153,16 +151,13 @@ def main(args):
             theta += ALPHA * delta * e
             e *= GAMMA * LAMBDA
 
-        if not args['policy']:
-            np.copyto(all_visitations[episode, :, :], visitations)
-
     # if requested then print policy correctness
     if args['policy']:
         print_policy_correctness()
 
     if not args['policy']:
         with open(args['filename'], 'wb') as outfile:
-            np.save(outfile, all_visitations)
+            np.save(outfile, np.array(visitations))
 
 
 def parse_args():

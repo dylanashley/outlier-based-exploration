@@ -5,6 +5,7 @@ import numpy as np
 import scipy.stats as st
 import seaborn as sns
 
+GOAL_STATE = (2, 2)
 NUMBER_OF_EPISODES = 25
 NUMBER_OF_SEEDS = 1000
 
@@ -41,7 +42,12 @@ for folder in folders:
         try:
             with open('results/{}/{}.npy'.format(folder['name'], i),
                       'rb') as infile:
-                data[i, ...] = np.load(infile)
+                visitations = np.load(infile)
+            episode = 0
+            for x, y in visitations:
+                data[i, episode, x, y] += 1
+                if (x, y) == GOAL_STATE:
+                    episode += 1
         except FileNotFoundError:
             continue
         for j in range(NUMBER_OF_EPISODES):

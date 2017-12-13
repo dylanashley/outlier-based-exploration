@@ -70,10 +70,8 @@ def main(args):
             for j in range(NUMBER_OF_ACTIONS):
                 Q[j] += theta[F[i, j]]
 
-    # make table to track state visitations
-    visitations = np.zeros((domain.x_card, domain.y_card), dtype=int)
-    all_visitations = np.zeros(
-        (NUMBER_OF_EPISODES, domain.x_card, domain.y_card), dtype=int)
+    # make list to track state visitations
+    visitations = list()
 
     for episode in range(NUMBER_OF_EPISODES):
 
@@ -82,7 +80,7 @@ def main(args):
         e.fill(0)
 
         # update state visitations
-        visitations[domain.x, domain.y] += 1
+        visitations.append((domain.x, domain.y))
 
         # run episode
         step = 0
@@ -111,7 +109,7 @@ def main(args):
             (last_state, _, _, state), done = domain.step(action)
 
             # update state visitations
-            visitations[domain.x, domain.y] += 1
+            visitations.append((domain.x, domain.y))
 
             # add new state to grid
             k_distance = lof_calculator.insert(
@@ -142,10 +140,8 @@ def main(args):
             theta += ALPHA * delta * e
             e *= GAMMA * LAMBDA
 
-        np.copyto(all_visitations[episode, :, :], visitations)
-
     with open(args['filename'], 'wb') as outfile:
-        np.save(outfile, all_visitations)
+        np.save(outfile, np.array(visitations))
 
 
 def parse_args():

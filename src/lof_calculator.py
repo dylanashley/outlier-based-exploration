@@ -4,8 +4,6 @@ import abc
 import itertools
 import numpy as np
 
-from scale import scale
-
 __all__ = ['LOFCalculator', 'GridLOFCalculator']
 
 EPS = 1e-9
@@ -310,3 +308,11 @@ class GridLOFCalculator(AbstractLOFCalculator):
             return self._lof(point_id)
         else:
             return
+
+
+def scale(value, start_min, start_max, end_min, end_max):
+    """Returns the result of scaling value from the range
+    [start_min, start_max] to [end_min, end_max].
+    """
+    return (end_min + (end_max - end_min) * (value - start_min) /
+            (start_max - start_min))

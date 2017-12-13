@@ -26,10 +26,8 @@ def main(args):
     domain = GridWorld(DOMAIN_X_CARD, DOMAIN_Y_CARD, DOMAIN_X_START,
                        DOMAIN_Y_START, DOMAIN_X_GOAL, DOMAIN_Y_GOAL)
 
-    # make table to track state visitations
-    visitations = np.zeros((domain.x_card, domain.y_card), dtype=int)
-    all_visitations = np.zeros(
-        (NUMBER_OF_EPISODES, domain.x_card, domain.y_card), dtype=int)
+    # make list to track state visitations
+    visitations = list()
 
     for episode in range(NUMBER_OF_EPISODES):
 
@@ -37,7 +35,7 @@ def main(args):
         state = domain.new_episode()
 
         # update state visitations
-        visitations[domain.x, domain.y] += 1
+        visitations.append((domain.x, domain.y))
 
         # run episode
         step = 0
@@ -54,16 +52,14 @@ def main(args):
             _, done = domain.step(np.random.randint(NUMBER_OF_ACTIONS))
 
             # update state visitations
-            visitations[domain.x, domain.y] += 1
+            visitations.append((domain.x, domain.y))
 
             # if terminal then end episode
             if done:
                 break
 
-        np.copyto(all_visitations[episode, :, :], visitations)
-
     with open(args['filename'], 'wb') as outfile:
-        np.save(outfile, all_visitations)
+        np.save(outfile, np.array(visitations))
 
 
 def parse_args():
