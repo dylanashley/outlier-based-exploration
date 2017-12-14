@@ -54,6 +54,7 @@ class GridWorld:
             self.y_goal = self._y_normalized_to_coord(
                 self.random_generator.rand())
         self._build_grid()
+        self._build_true_value_table()
         self.new_episode()
 
     def _build_grid(self):
@@ -72,6 +73,16 @@ class GridWorld:
                 loc=y_mu,
                 scale=y_sigma)
             self.grid[x, y] = (x_gen, y_gen)
+
+    def _build_true_value_table(self):
+        self.true_value = np.zeros(self.grid.shape)
+        for x, y in itertools.product(range(self.x_card), range(self.y_card)):
+            distance = abs(x - self.x_goal) + abs(y - self.y_goal)
+            if self.gamma == 1:
+                self.true_value[x, y] = -distance
+            else:
+                self.true_value[x, y] = -self.gamma * (
+                    self.gamma**distance - 1) / (self.gamma - 1)
 
     def _coord_to_normalized(self, x, y):
         return (self._x_coord_to_normalized(x), self._y_coord_to_normalized(y))
@@ -133,6 +144,22 @@ class GridWorld:
             return self.new_episode()
         self._make_samples()
         return (self.sample_x, self.sample_y)
+
+    def optimal_actions(self, x=None, y=None):
+        if x is None:
+            x = self.x
+        if y is None:
+            y = self.y
+        rv = list()
+        if x > self.x_goal:
+            rv.append(self.WEST)
+        if x < self.x_goal:
+            rv.append(self.EAST)
+        if y > self.y_goal:
+            rv.append(self.NORTH)
+        if y < self.y_goal:
+            rv.append(self.SOUTH)
+        return rv
 
     def step(self, action):
         last_state = (self.sample_x, self.sample_y)

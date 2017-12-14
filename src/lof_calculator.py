@@ -1,6 +1,7 @@
 # -*- coding: ascii -*-
 
 import abc
+import collections
 import itertools
 import numpy as np
 
@@ -77,7 +78,7 @@ class AbstractLOFCalculator(metaclass=abc.ABCMeta):
 
 
 class LOFCalculator(AbstractLOFCalculator):
-    def __init__(self, k, init_points, ranges=None):
+    def __init__(self, k, init_points, ranges=None, max_points=np.inf):
         assert (k > 0)
         assert (len(init_points) > k)
         for i in range(1, len(init_points)):
@@ -94,9 +95,10 @@ class LOFCalculator(AbstractLOFCalculator):
             self.ranges = tuple((1 for _ in range(len(init_points[0]))))
         else:
             self.ranges = ranges
+        self.max_points = max_points
 
         # add initial points
-        self._points = list()
+        self._points = collections.deque()
         for point in init_points:
             self._points.append(point)
 
@@ -115,6 +117,9 @@ class LOFCalculator(AbstractLOFCalculator):
     def insert(self, point, rv=None):
         assert (self._is_valid_point(point))
         assert (rv in {'k-distance', 'LOF', None})
+
+        if len(self._points) + 1 > self.max_points:
+            self._points.popleft()
 
         point_id = len(self._points)
         self._points.append(point)

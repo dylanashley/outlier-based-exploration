@@ -12,7 +12,7 @@ from tile_coder import TileCoder
 LAMBDA = 0.9
 MU = 0.1
 NUMBER_OF_ACTIONS = 4
-NUMBER_OF_EPISODES = 25
+NUMBER_OF_EPISODES = 10000
 PI = 0.0
 
 NUMBER_OF_TILINGS = 1
@@ -25,7 +25,7 @@ DOMAIN_Y_START = 0
 DOMAIN_X_GOAL = 2
 DOMAIN_Y_GOAL = 2
 
-ALPHA = 0.1 / NUMBER_OF_TILINGS
+ALPHA = 0.01 / NUMBER_OF_TILINGS
 EPSILON_ACTION_SELECTION_PROBABILITY = PI / NUMBER_OF_ACTIONS
 GREEDY_ACTION_SELECTION_PROBABILITY = (
     1 - PI) + EPSILON_ACTION_SELECTION_PROBABILITY
@@ -57,17 +57,14 @@ def main(args):
             for j in range(NUMBER_OF_ACTIONS):
                 Q[j] += theta[F[i, j]]
 
-    # make list to track state visitations
-    visitations = list()
+    # make list to track percentage of optimal actions over time
+    optimal_actions_tracker = np.zeros((NUMBER_OF_EPISODES, 2))
 
     for episode in range(NUMBER_OF_EPISODES):
 
         # reset learner and domain
         state = domain.new_episode()
         e.fill(0)
-
-        # update state visitations
-        visitations.append((domain.x, domain.y))
 
         # run episode
         step = 0
@@ -92,11 +89,13 @@ def main(args):
             if (action != greedy_action):
                 e.fill(0)
 
+            # record if we could have selected an optimal action
+            optimal_actions_tracker[episode, 0] += int(
+                greedy_action in domain.optimal_actions())
+            optimal_actions_tracker[episode, 1] += 1
+
             # take the action
             (last_state, reward, gamma, state), done = domain.step(action)
-
-            # update state visitations
-            visitations.append((domain.x, domain.y))
 
             # get delta
             delta = reward - Q[action]
@@ -124,7 +123,7 @@ def main(args):
             e *= gamma * LAMBDA
 
     with open(args['filename'], 'wb') as outfile:
-        np.save(outfile, np.array(visitations))
+        np.save(outfile, optimal_actions_tracker)
 
 
 def parse_args():
