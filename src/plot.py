@@ -6,6 +6,8 @@ import numpy as np
 import scipy.stats as st
 import seaborn as sns
 
+from matplotlib.font_manager import FontProperties
+
 EXPLORATION_NUMBER_OF_EPISODES = 25
 GOAL_STATE = (2, 2)
 LEARNING_NUMBER_OF_EPISODES = 10000
@@ -34,15 +36,17 @@ folders = [{
 # create figures
 figures = dict()
 for name in [
-        'cumulative_episodic_error', 'cumulative_normalized_episodic_error',
-        'episodic_length', 'cumulative_percentage_optimal_actions'
+        'cumulative_episodic_error', 'cumulative_error',
+        'cumulative_normalized_episodic_error',
+        'cumulative_percentage_optimal_actions', 'episodic_length',
+        'gradient_cumulative_error'
 ]:
     fig = plt.figure(figsize=(5, 5), dpi=600)
     ax = fig.add_subplot(111)
     figures[name] = {'fig': fig, 'ax': ax}
 sns.set_style('whitegrid')
 
-# build std performance figures
+# build episodic std performance figures
 for folder in folders:
     count = np.ones((MAX_NUMBER_OF_SEEDS,
                      EXPLORATION_NUMBER_OF_EPISODES)) * np.nan
@@ -97,6 +101,71 @@ for folder in folders:
             cumulative_std / cumulative_count, axis=0, nan_policy='omit'),
         label=folder['label'])
 
+# build timestep std performance figures
+max_timesteps = 0
+for folder in folders:
+    for i in range(MAX_NUMBER_OF_SEEDS):
+        try:
+            with open('results/{}/{}.npy'.format(folder['name'], i),
+                      'rb') as infile:
+                visitations = np.load(infile)
+        except FileNotFoundError as e:
+            continue
+        assert (len(visitations) > 0)
+        max_timesteps = max(max_timesteps, len(visitations))
+for folder in folders:
+    cumulative_std = np.ones((MAX_NUMBER_OF_SEEDS, max_timesteps)) * np.nan
+    data = np.ones((max_timesteps, 5, 5)) * np.nan
+    num_seeds = np.zeros(max_timesteps)
+    for i in range(MAX_NUMBER_OF_SEEDS):
+        data.fill(np.nan)
+        try:
+            with open('results/{}/{}.npy'.format(folder['name'], i),
+                      'rb') as infile:
+                visitations = np.load(infile)
+        except FileNotFoundError as e:
+            continue
+        assert (len(visitations) > 0)
+
+        # compress visitations to format to compute std over
+        for j in range(len(visitations)):
+            if j == 0:
+                data[j, :, :].fill(0)
+            else:
+                np.copyto(data[j, :, :], data[j - 1, :, :])
+            x, y = visitations[j]
+            data[j, x, y] += 1
+            assert (np.sum(data[j, :, :]) - np.sum(data[j - 1, :, :]) == 1)
+
+        # calculate metrics over data
+        num_seeds[0:len(visitations)] += 1
+        for j in range(len(visitations)):
+            cumulative_std[i, j] = np.std(data[j, :, :])
+
+    # cut any data where less than a quarter of the seeds were still running
+    threshold = 0
+    while threshold < max_timesteps:
+        if num_seeds[threshold] < 0.25 * num_seeds[0]:
+            break
+        else:
+            threshold += 1
+    cumulative_std[:, threshold + 1:].fill(np.nan)
+
+    # plot figures for folder
+    figures['cumulative_error']['ax'].errorbar(
+        np.arange(threshold) + 1,
+        np.nanmean(cumulative_std[:, :threshold], axis=0),
+        yerr=st.sem(cumulative_std[:, :threshold], axis=0, nan_policy='omit'),
+        label=folder['label'])
+    figures['gradient_cumulative_error']['ax'].errorbar(
+        np.arange(threshold) + 1,
+        np.nanmean(np.gradient(cumulative_std[:, :threshold], axis=1), axis=0),
+        yerr=st.sem(
+            np.gradient(cumulative_std[:, :threshold], axis=1),
+            axis=0,
+            nan_policy='omit'),
+        label=folder['label'])
+
 # build learning performance figure
 data = np.ones((MAX_NUMBER_OF_SEEDS, LEARNING_NUMBER_OF_EPISODES, 2)) * np.nan
 for i in range(MAX_NUMBER_OF_SEEDS):
@@ -117,24 +186,32 @@ figures['cumulative_percentage_optimal_actions']['ax'].errorbar(
     yerr=st.sem(data[:, :, 0] / data[:, :, 1], axis=0, nan_policy='omit'))
 
 # set axes labels for figures and display legend
-figures['cumulative_episodic_error']['ax'].set_ylabel('Cumulative Error')
+figures['cumulative_episodic_error']['ax'].set_ylabel(
+    'Cumulative Error', labelpad=10)
+figures['cumulative_error']['ax'].set_ylabel('Cumulative Error', labelpad=10)
+figures['gradient_cumulative_error']['ax'].set_ylabel(
+    'Gradient of Cumulative Error', labelpad=10)
 figures['cumulative_normalized_episodic_error']['ax'].set_ylabel(
-    'Cumulative Normalized Error')
+    'Cumulative Normalized Error', labelpad=10)
 figures['cumulative_percentage_optimal_actions']['ax'].set_ylabel(
-    'Cumulative Percentage of Timesteps Optimal Action Was Taken')
-figures['episodic_length']['ax'].set_ylabel('Timesteps in Episode')
+    'Cumulative Percentage of Timesteps Optimal Action Was Taken', labelpad=10)
+figures['episodic_length']['ax'].set_ylabel(
+    'Timesteps in Episode', labelpad=10)
+for name in ['cumulative_error', 'gradient_cumulative_error']:
+    figures[name]['ax'].set_xlabel('Timestep', labelpad=10)
 for name in [
         'cumulative_episodic_error', 'cumulative_normalized_episodic_error',
         'cumulative_percentage_optimal_actions', 'episodic_length'
 ]:
-    figures[name]['ax'].set_xlabel('Episode')
-for name in [
-        'cumulative_episodic_error', 'cumulative_normalized_episodic_error',
-        'episodic_length'
-]:
-    figures[name]['ax'].legend(loc='best')
+    figures[name]['ax'].set_xlabel('Episode', labelpad=10)
 
 # save figures
 for name, v in figures.items():
-    v['fig'].tight_layout()
-    v['fig'].savefig('results/{}.png'.format(name))
+    # Jacek Bzdak; http://jb-blog.readthedocs.io/en/latest/posts/0012-matplotlib-legend-outdide-plot.html; 2017-12-20
+    fp = FontProperties()
+    fp.set_size('small')
+    legend = v['ax'].legend(bbox_to_anchor=(1.05, 1), loc=2, prop=fp)
+    v['fig'].savefig(
+        'results/{}.pdf'.format(name),
+        bbox_inches='tight',
+        additional_artists=[legend])
