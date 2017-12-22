@@ -18,19 +18,16 @@ folders = [{
     'label': 'Random'
 }, {
     'name': 'k_distance_based_exploration',
-    'label': 'State Based k-distance'
+    'label': 'State k-distance'
 }, {
     'name': 'lof_based_exploration',
-    'label': 'State Based LOF'
+    'label': 'State LOF'
 }, {
     'name': 'transition_k_distance_based_exploration',
-    'label': 'Transition Based k-distance'
+    'label': 'Transition k-distance'
 }, {
     'name': 'transition_lof_based_exploration',
-    'label': 'Transition Based LOF'
-}, {
-    'name': 'policy_iteration',
-    'label': 'Policy Iteration'
+    'label': 'Transition LOF'
 }]
 
 # create figures
