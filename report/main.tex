@@ -1,0 +1,63 @@
+\documentclass[12pt,english]{article}
+
+% import packages
+\usepackage{substitutefont} % must be before babel
+\usepackage{babel} % babel must be above all other packages
+\usepackage[fleqn]{amsmath}
+\usepackage[iso]{isodate}
+\usepackage[labelfont=bf]{caption}
+\usepackage[letterpaper, margin=0.75in]{geometry}
+\usepackage[onehalfspacing]{setspace}
+\usepackage{alltt}
+\usepackage{amsthm, amssymb, bm, bbm}
+\usepackage{caption}
+\usepackage{color}
+\usepackage{comment}
+\usepackage{graphicx}
+\usepackage{minted}
+\usepackage{multicol}
+\usepackage{multirow}
+\usepackage{parskip}
+\usepackage{subfiles}
+
+% configure image file extensions
+\DeclareGraphicsExtensions{.pdf, .png, .jpg}
+\graphicspath{{images/}{../images/}}
+
+% set indentation
+\setlength{\mathindent}{72pt}
+\setlength{\parindent}{24pt}
+\setlength{\parskip}{0pt}
+
+\begin{document}
+
+\title{Maximizing Local Outlier Factors As an Objective for Exploration in Reinforcement Learning}
+\author{Dylan R. Ashley}
+\date{\printdate{2017-12-22}}
+\maketitle
+
+\begin{abstract}
+    \normalsize
+    We borrow the idea of Local Outlier Factors from Unsupervised Learning as a means of encouraging a Reinforcement Learning agent to explore uniformly. We show how this can be done and how it can be supplied to the agent as a simple reward signal. We also provide experimental results on a modified gridworld domain which gives strong evidence that this is a useful way of incentivizing uniform exploration. Finally, we discuss the key problems that have to be solved for this to be a practical method and how it can be further improved.
+\end{abstract}
+
+\section{Introduction}
+\label{sec:introduction}
+\subfile{sections/introduction}
+
+\section{Methods}
+\label{sec:methods}
+\subfile{sections/methods}
+
+\section{Experimental Evaluation}
+\label{sec:experimental_evaluation}
+\subfile{sections/experimental_evaluation}
+
+\section{Conclusions}
+\label{sec:conclusions}
+\subfile{sections/conclusions}
+
+\bibliographystyle{acm}
+\bibliography{bibliography}
+
+\end{document}

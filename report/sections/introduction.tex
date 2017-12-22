@@ -1,0 +1,81 @@
+\documentclass[../main.tex]{subfiles}
+
+\begin{document}
+
+Reinforcement Learning deals with an agent trying to maximize some reward signal by interacting with an environment. In most cases, the agent is given little to no knowledge about the environment and so must explore the environment to understand how to maximize this signal. The task of finding a good way of interacting with the environment is known as the \textit{exploration problem}.
+
+We propose a way to use Local Outlier Factors from Unsupervised Learning as a way of incentivizing an agent to explore the environment in a uniform manner. This uniform method of exploration is intrinsically different to exploring the environment randomly. Randomly exploring an environment is likely to entail spending much more time in easily accessible parts of the environment and much less time in remote areas of the environment whereas a uniform exploration strategy should spend roughly equal time in both. In domains where it essential that the agent visits remote parts of the environment, a uniform exploration policy will be significantly better than a random exploration policy.
+
+Finding a good exploration policy has long been an important problem in Reinforcement Learning, so a decent amount of work has been done in this area. For example, Thrun considered the question of whether exploration should be directed or undirected \cite{Thrun:1992:EER:865072}. Some time later Barto considered what the analogy of the psychological concept of intrinsic motivation, which is deeply related to the idea of exploration, would be in Reinforcement Learning \cite{Barto2013}. More recently Bellemare et al. developed a novel method of guiding exploration using pseudo-counts \cite{DBLP:conf/nips/BellemareSOSSM16}. However, to our knowledge, the idea of using outliers and Unsupervised Learning as a means of guiding exploration is as of yet unexplored.
+
+This work deals with two intersection areas: Reinforcement Learning and Unsupervised Learning. This intersection means that to understand this work a reader first needs to understand both Local Outlier Factors and Reinforcement Learning. Therefore we go through the necessary background on what Reinforcement Learning is in Section~\ref{sec:reinforcement_learning} and then what Local Outlier Factors are in Section~\ref{sec:local_outlier_factor}. After that, we elaborate on our proposed method in Section~\ref{sec:methods}. Following that, we perform an empirical evaluation of our method in Section~\ref{sec:experimental_evaluation}. Finally we conclude in Section~\ref{sec:conclusions}.
+
+\subsection{Reinforcement Learning}
+\label{sec:reinforcement_learning}
+
+Reinforcement Learning \cite{DBLP:books/lib/SuttonB98}is a branch of machine learning that considers the problem of an agent interacting with an environment to try and maximize some reward signal (see Figure~\ref{fig:reinforcement_learning}). Specifically, at each discrete timestep $t$, when the environment is in state $S_t$, the agent takes an action $A_t$, and in response, the environment changes its state to a new state, $S_{t + 1}$, and rewards the agent with some real number, $R_{t + 1}$.
+
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=14cm]{{reinforcement_learning.pdf}}
+    \caption{Visualization of the Reinforcement Learning Problem}
+    \label{fig:reinforcement_learning}
+\end{figure}
+
+We consider two kinds of domains in Reinforcement Learning: episodic and continuing domains. In episodic domains, the agent begins in some start state and continues interacting with the environment until it reaches some terminal state. The objective of the learning is then to find a set of rules, or a \textit{policy}, by which it selects an action to take in the current state such that the expected total reward it receives over the course of an episode, or the expected value of the \textit{return}, is maximized. We write the return for an episodic task with $n$ total timesteps as follows:
+\begin{equation}
+    \label{eqn:episodic_return}
+    G_t = \sum_{i=t}^n R_i
+\end{equation}
+
+While this definition suffices for episodic domains, in continuing domains there are no terminal states, but instead, we consider rewards to be better when they are received sooner. Specifically, when the agent is picking an action for the timestep $t$, it considers a reward $R_{t + k}$ to be worth $\gamma^{k - 1}R_{t + k}$ where $\gamma \in [0, 1)$ is known as the \textit{discount factor}. In this domain we write the return as follows:
+\begin{equation}
+    \label{eqn:continuing_return}
+    G_t = \sum_{i=t}^\infty \gamma^{i - t - 1}R_i
+\end{equation}
+
+The objective of the learning in a continuous domain is then to find a policy by which it selects an action to take in the current state such that the expected sum of discounted rewards, or the expected value of Equation~\ref{eqn:continuing_return}, is maximized. The objective of learning in a continuous domain would be identical to the objective of learning in an episodic domain if the discount factor is equal to $1$ and the episode had infinite length, both of which are not generally allowed in this dichotomy. Using the definitions of return as mentioned above, we can formalize what it means for a state, or the act of taking an action in a state, to be valuable.
+
+We say the value of a state when the agent is following some policy is the expected return after entering that state. We write the value of a state $S$ at time $t$ while the agent is following a policy $\pi$ as follows:
+\begin{equation}
+    \label{eqn:state_value}
+    v_\pi(S_t) = \mathbbm{E}_\pi \left[G_t\right]
+\end{equation}
+
+The value of a state tells us how "good" it is to be in a state if we want to maximize the return. However, without a model of transitions between states, it does not give us any knowledge of how to pick a "good" action in a given state. Because of this, many learning algorithms instead learn the \textit{action value} of states. The action value of a state $S$ and action $A$ at time $t$ while the agent will follow a policy $\pi$ for all actions taken after time $t$ is denoted as follows:
+\begin{equation}
+    \label{eqn:action_value}
+    q_\pi(S_t, A_t) = \mathbbm{E} \left[R_{t + 1} | S_t, A_t\right] + \gamma \mathbbm{E}_\pi \left[G_{t + 1} | S_t, A_t\right]
+\end{equation}
+
+One intuitive way to use action values is to modify our policy when the action value under our policy of the action the policy would take is less than the action value under our policy of some other action. When we do this its called \textit{policy iteration} and, in practice, it frequently converges to the optimal policy as long as there is no action in any state that we have a zero probability of selecting. If there is such an action, there's a chance that we could perhaps miss some rare but valuable reward. An easy way to prevent this is to pick the "best" action most of the time but take a random action on occasion. This method of picking actions is known as an \textit{$\epsilon$-greedy} policy, and many algorithms can compensate for it and learn the values of states or action values of state action pairs as if the agent were actually following a true greedy policy. One example of an algorithm that learns action values and can correct for an $\epsilon$-greedy policy is Q-learning. While many algorithms can compensate for an $\epsilon$-greedy policy, many other algorithms can compensate for the agent following some arbitrary policy while learning about some arbitrarily different policy.
+
+Reinforcement Learning algorithms that learn about a different policy than the policy they use to pick actions are known as \textit{offpolicy} algorithms. These are especially important algorithms as it is often essential to be able to explore intelligently to learn about an environment rapidly and these algorithms allow complicated exploration behavior while still being able to formulate an optimal policy as the agent explores. However, while exploration is an important aspect for rapid learning, it is important to note that good exploration of the environment and a good learning algorithm alone are often not sufficient for learning to progress quickly in any Reinforcement Learning domain.
+
+In addition to having algorithms that compensate for some deviation in the policy of the agent, we also have algorithms where the agent need not be provided with the true state of the environment but can instead provide some vector which describes the current state. This vector is known as a \textit{feature vector} and an example of an algorithm that can learn with feature vectors is, again, Q-learning. There are various methods to create a feature vector from the true state in a way that makes learning easier. However, the performance of most methods of these methods are heavily dependent on the domain. One simple example of such a method that works for cases where the state is described by a continuous-valued hyperplane is \textit{tile coding}. The general idea of tile coding is to reduce the dimensionality of a problem by overlaying the hyperplane with a series of oversized grids. Each grid has the same dimensionality as the hyperplane, but each subsequent grid is shifted slightly in relation to the previous grid. The indices of the cells over the grids of which a state falls in are then used to describe the state to the learning algorithm. The purpose of having multiple grids is so that states that are somewhat close to one another will appear in the same tile on some grids but different tiles in other ones. For more information on tile coding or any of the other previously mentioned details about Reinforcement Learning see \textit{Reinforcement learning - an introduction} by Sutton and Barto \cite{DBLP:books/lib/SuttonB98}.
+
+Before we conclude this brief overview of Reinforcement Learning, there are a few small but important additional but advanced details about the Reinforcement Learning problem and the prior description of it that have so far been omitted for clarity but which we include here for completeness. Most notably, in Reinforcement Learning, we enforce the constraint on domains that they must retain the \textit{Markov Property}. That is, we require the following to hold in the domain:
+\begin{equation}
+    \label{eqn:markov_property}
+    \text{P}\left(R_{t + 1}, S_{t + 1} | S_t, A_t, S_{t - 1}, A_{t - 1}, ...\right) = \text{P}\left(R_{t + 1}, S_{t + 1} | S_t, A_t\right)
+\end{equation}
+
+In other words the reward $R_{t + 1}$ and next state $S_{t + 1}$ is conditionally independent of all but the last state and action given the last state and action ($S_t$, $A_t$). Another interpretation of this is that knowing the full history of the interactions between the agent and environment does not give us any more relevant information we could use to predict the reward and next state than knowing only the last action taken and the last state. The enforcement of the Markov Property on the domain is the most significant detail that was omitted however there is one other important detail that was omitted.
+
+Another detail that was previously omitted was that, in contrast to the Markov Property, it is not an explicit requirement of the Reinforcement Learning problem that timesteps be discrete. We do not handle the alternate case here however as most algorithms in Reinforcement Learning assume we are working with discrete timesteps.
+
+\subsection{Local Outlier Factor}
+\label{sec:local_outlier_factor}
+
+Local Outlier Factors, or LOFs, are a metric used to find outliers in a dataset. First introduced by Breunig et al. \cite{DBLP:conf/sigmod/BreunigKNS00}, they estimate the density of the space around a data point and compare it to an equivalent estimate of the density of the space around nearby points. Comparing points to nearby points makes this a locality-based outlier metric and allows it to easily handle variable density clusters, unlike most global outlier metrics. To estimate the density of the space around a point, the LOF method simply calculates the average \textit{reachability distance} to its $k$ nearest neighbours ($k$-NN) where the reachability distance from a point $a$ to $b$ is simply the maximum of the distance between the points and the distance from point $b$ to the most distant point in its $k$-NN, or its \textit{$k$-distance}. The LOF of a data point is then just the ratio of the estimate of the density of the space around that data point, or the \textit{local reachability density} of that point, to the average local reachability density of each of that point's $k$-NN. We formalize this using the following set of equations:
+\begin{align}
+    \label{eqn:lof}
+    &k\text{-distance}(p) = \underset{q \in k\text{NN}(p)}{\max} d(p, q) \\
+    &\text{reach-dist}_k(p,q) = \max\{\text{d}(p,q), k\text{-distance}(q)\} \\
+    &\text{lrd}(p) = \cfrac{1}{\frac{1}{k} \sum_{q \in k\text{NN}(p)} \text{reach-dist}_k(p, q)} \\
+    &\text{LOF}(p) = \cfrac{\frac{1}{k} \sum_{q \in k\text{NN}(p)} \text{lrd}(q)}{\text{lrd}(p)}
+\end{align}
+
+Of crucial importance in the above equations is the fact that computing the LOF of a data point requires a combined total of $k + 1$ different $k$-NN searches. However, when computing the LOF for a data point, only the $k$-NN searches can be dependent on the number of data points in the dataset. This fact, along with the locality property of the LOF method, makes it suitable for data streams \cite{DBLP:conf/cidm/PokrajacLL07} which is the norm in Reinforcement Learning problems.
+
+\end{document}

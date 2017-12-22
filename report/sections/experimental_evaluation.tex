@@ -1,0 +1,128 @@
+\documentclass[../main.tex]{subfiles}
+
+\begin{document}
+
+We begin by discussing the domain we experiment with in Section~\ref{sec:domain}. We then describe the Reinforcement Learning algorithms we use with the LOF based reward signal in Section~\ref{sec:learning_algorithms}. After that, we discuss how we calculate the $k$-NN of states and transitions in our experiments in Section~\ref{sec:finding_the_k-NN}. Following that, we explain and justify the error metric we use to describe the deviation from uniform exploration in Section~\ref{sec:error_metric}. Finally, we report and discuss our experimental results in Section~\ref{sec:results}.
+
+\subsection{Domain}
+\label{sec:domain}
+
+For the experimental evaluation, we use the gridworld domain shown in Figure~\ref{fig:domain}. The gridworld has 25 states arranged in a 5 x 5 grid. We label the states $(0, 0)$ through $(4, 4)$ based on their position in the grid. The gridworld has exactly one start state for each episode in the north-west corner (i.e., state $(0, 0)$) and one terminal state which is the center-most state (i.e., state $(2, 2)$). There is no discounting factor in this domain, and the reward at each timestep is always $-1$. In each state there are four actions: $North$, $South$, $East$, and $West$. Taking one of these four actions will deterministically move the agent one cell in that direction. For example taking the action $North$ in state $(1, 1)$ will result in the agent moving to state $(1, 0)$. If the agent attempts to move outside the gridworld, say by taking action $East$ in state $(4, 0)$, then the agent does not move at all as if the gridworld were surrounded by walls and the agent had simply walked into a wall.
+
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=8cm]{{domain.pdf}}
+    \caption{Visualization of the Domain Used for Experimental Evaluation}
+    \label{fig:domain}
+\end{figure}
+
+As an activity to further understand this domain, we consider how to construct an optimal policy. Assume, without loss of generality, that the agent is in state $(x, y)$ with $x \leq 2$ and $y \leq 2$. Then an optimal policy takes action $East$ a total of $2 - x$ times and action $South$ a total of $2 - y$ times. The order of the actions does not matter which leads to there being exponentially many optimal polices. Note that if $x > 2$ then instead of taking the action $East$ a total of $2 - x$ times it takes the action $West$ a total of $x - 2$ times. Similarly, if $y > 2$ then instead of taking the action $South$ a total of $2 - y$ times it takes the action $North$ a total of $y - 2$ times. While constructing an optimal policy is straightforward there are some issues in using this domain as is with the proposed exploration method.
+
+There are two critical issues in using this domain as a basis for evaluating the proposed exploration method. Firstly, it is a tabular domain and so would fail to demonstrate both the ability of the proposed method to handle the linear function approximation case and the ability of the proposed method to handle continuous values natively. Secondly, the local reachability density of a point diverges to infinity when it and its $k$-NN all have a pairwise distance of $0$.  Resolving this issue in the proposed exploration method is outside of the scope of this work and is brought up as a topic for future consideration in Section~\ref{sec:conclusions}. Because of the issues mentioned above regarding reachability distances, we deny the agent access to the underlying state and instead provide it with a modified state. We call this modified state an observation and refer to the original state as the true state. It is important to note that, from the perspective of the learning algorithm, the observation is the state.
+
+Instead of receiving the true state of the gridworld the agent receives an observation which, from its perspective, is the state of the environment. To accomplish this, we overlay the grid of true states with a 2D plane with a continuous-valued $x$ and $y$ axis both going from $0$ to $1$. Each cell of the original grid then occupies one-fifth of the $x$ axis and one-fifth of the $y$ axis. For example the cell $(0, 0)$ occupies both $x$ values and $y$ values in the range $(0, 0.2)$. The cell $(1, 3)$ occupies $x$ values in the range $(0.2, 0.4)$ and $y$ values in the range $(0.6, 0.8)$. The observation the agent receives from the domain upon entering a cell is drawn from a 2D truncated Gaussian distribution over the plane and centered at the middle of the cell the agent is in. All truncated Gaussian are bounded with $x$ and $y$ values both between $0$ and $1$. The truncated Gaussian distribution has a standard deviation equal to $0.2$ or the amount of space in both the $x$ and $y$ axis a single cell maps to. Evidently, this adds a layer of noise to the observations the agent receives.
+
+The form of the observations the agent receives causes the modified gridworld to be significantly more challenging to learn than the unmodified version. Notably, this creates ambiguity in the true location of the agent even with perfect function approximation. Perhaps more interesting than the ambiguity in the position of the agent, if one na\"ively translates an optimal policy from the original domain and uses a single layer of 5 x 5 tile coding as function approximation then the resulting policy is not necessarily an optimal policy in the modified domain. For example consider Figure~\ref{fig:optimal_action_change} where the green dot represents an observation. If the agent is indeed in cell $(1, 1)$ then both the $South$ and $East$ actions are optimal actions. However in cell $(2, 1)$ the only optimal action is $South$, and in cell $(1, 2)$ the only optimal action is $East$. As the agent is more likely to receive this specific observation if it is in cell $(2, 1)$ than if it is in cell $(1, 2)$ the only optimal action for the agent to take is $South$.
+
+\begin{figure}[ht]
+    \centering
+    \includegraphics[width=6cm]{{optimal_action_change.pdf}}
+    \caption{Visualization of the Potential for an Optimal Policy to Become Sub-optimal in the Modified Domain}
+    \label{fig:optimal_action_change}
+\end{figure}
+
+\subsection{Learning Algorithms}
+\label{sec:learning_algorithms}
+
+We use the Q-learning algorithm in all of our experiments because it is a well known and common offpolicy Reinforcement Learning algorithm. When using it for exploration, we use a step size of $0.5$, a trace decay value of $0.9$, and a discount factor of $0.9$. We use one layer of 10 x 10 tile coding as function approximation. We also employ a form of $\epsilon$-greedy exploration where, at each timestep, the optimal action with respect to our LOF based reward is taken with 90\% probability, and a random action is taken instead with a 10\% probability. All the above values are selected after trying a few values. While a more fine sweep may provide additional performance, we are limited by computational resources, and this is sufficient to achieve the desired results. We show that the above is adequate for use with the domain from Section~\ref{sec:domain} by showing that is learnable with this algorithm empirically.
+
+To show that the domain is learnable, we use Q-learning under the same conditions as above except that we use the true reward signal, a step size of $0.01$, and the true discount factor of the domain. We run this for 10000 episodes and note, for each episode, what percentage of all actions taken within and before this episode were optimal actions. The results are displayed in Figure~\ref{fig:cumulative_percentage_optimal_actions}. This environment has stochasticity introduced by the method in which observations are generated, so an optimal policy will not necessarily make the correct action at each timestep. However the fact that the percentage of correct actions taken increasing implies that the Q-learning agent is learning a better policy and thus we conclude this domain is learnable with the Q-learning algorithm.
+
+\begin{figure}[ht]
+    \centering
+    \includegraphics[height=10cm]{{cumulative_percentage_optimal_actions.pdf}}
+    \caption{Percentage of Optimal Actions Taken Using Policy Iteration}
+    \label{fig:cumulative_percentage_optimal_actions}
+\end{figure}
+
+\subsection{Finding the $k$-NN}
+\label{sec:finding_the_k-NN}
+
+The most computationally expensive part of our experiments is finding the $k$-NN of data points. We use two alternate methods based on if we are using states or transitions. When working with transitions, we use the na\"ive method where we merely sort all data points and select the closest $k$ for the $k$-NN of a data point. The na\"ive method has the advantage that it is only lightly affected by dimensionality and requires no preprocessing. However, this method takes a considerable amount of time as the number of data points increases as it is in $\text{O}(nd)$ for $n$ data points of $d$ dimensionality. Because of this, we use a more efficient method when using the lower dimensional states.
+
+When working with the lower dimensional states, we overlay the $x$ and $y$ axis in the domain with a 10 x 10 grid with equal sized cells similar to the one shown in Figure~\ref{fig:kNN_grid_structure}. We then precompute the distances between all cells in the grid. We define the distance from a cell to itself to be zero. For two different cells, we define the distance between the two cells that are $dx$ cells apart in the $x$ direction and $dy$ cells apart in the $y$ direction to be $dx + dy$ if $dx \neq dy$ and $dx + dy - 1$ otherwise. This distance metric is equivalent to creating increasingly sized hypercubes around the cell of interest and stating that the distance to each other cell is the minimum size of the hypercube that contains the other cell. Computing the pairwise distances between all cells is only a part of the necessary precomputation to make this grid-based method efficient.
+
+\begin{figure}[ht]
+    \centering
+    \includegraphics[width=10cm]{{kNN_grid_structure.pdf}}
+    \caption{Visualization of the $k$-NN Grid}
+    \label{fig:kNN_grid_structure}
+\end{figure}
+
+For both the na\"ive method and the grid-based method we must collect $k + 1$ data points before we can calculate the $LOF$ for any data point. In our experiments, we pick a $k$ of 20 after trying a few values and then collect $k + 1$ data points by randomly moving around the environment. While a more fine sweep over $k$ values may provide additional performance, we are limited by computational resources, and this is sufficient to achieve the desired results. It is also important to note that we ignore this additional behavior when reporting our results in Section~\ref{sec:results}. After collecting enough data points, we can calculate the $k$-distance and $k$-NN of cells. We define the $k$-distance of a cell to be the upper bound for the distance to another cell that could contain a data point in the $k$-NN of a point in the original cell. We similarly define the $k$-NN of a cell to be the set of cells such that the distance between those cells and the original cell is no more than the $k$-distance of the original cell. As a simple example consider a cell near the center of our 10 x 10 grid where the cell contains $k + 1$ data points. We would say the $k$-distance of that cell is $1$ because the only cells that could contain data points in the $k$-NN of a point in the original cell is the original cell itself and the surrounding nine cells. The original cell and the surrounding nine cells would then form the $k$-NN of the original cell. The idea behind the grid is that when finding the $k$-NN of a data point we only need to search cells in the $k$-NN of the cell the data point appears in. Furthermore, we can precompute the $k$-distances and $k$-NN of cells and update them as new data points are added.
+
+When adding a new data point some of the $k$-distances and, by extension, the $k$-NN for cells may change. Of crucial importance is that these $k$-distances can only decrease. We have two methods of determining which cells may have their $k$-distance changed when a new data point is inserted. We could iterate over cells and find those that have that cell within their $k$-distance or we can precompute the $k$-RNN of cells and update them as needed. Updating them entails storing, for each cell, a list of cells that have that cell in their $k$-NN. When a data point is added, we search through each of those cells and determine if the $k$-distance of any of them has changed. If the $k$-distance for a cell has changed, we have to go through and update the $k$-RNN for each cell that is no longer in the $k$-NN of that cell. This operation will be frequent with few data points but will become less frequent as the number of data points increases. So this method provides a trade-off where the computation time for the first few data points is significantly higher than the na\"ive method, but it becomes considerably lower than the na\"ive method as time goes on. This method has an additional advantage though in that it can help with the $k$-RNN of data points as well.
+
+If we choose to precompute the $k$-RNN of cells, then to find the $k$-RNN for a data point in the grid one only has to look at the cells in the $k$-RNN of the cell the data point appears in. This abstraction to cells again exploits locality to reduce the number of data points that must be searched through to find the $k$-RNN of a data point. Figure~\ref{fig:kNN_grid_structure} gives some visual intuition about the locality property.
+
+\subsection{Error Metric}
+\label{sec:error_metric}
+
+As the objective is to achieve roughly uniform exploration of the state space, we use the deviation from uniform exploration as an error metric. Specifically, with $V_{S_i}$ being the total number of visitations to the true state $S_i$, we use the standard deviation over all $V_{S_i}$ as the error metric:
+
+\begin{equation}
+    \label{eqn:error}
+    \sigma = \sqrt{\frac{\sum_{i = 1}^{|S|} \left(V_{S_i} - \overline{V}\right)^2}{|S| - 1}}
+\end{equation}
+
+Using this as an error metric has a few advantages. Firstly it adequately captures when visitations to states are not equal. Secondly, it penalizes both a disproportionately large number of visitations to a state and a disproportionately small number of visitations to a state more severely than a minor difference in visitation between many states. This distribution of penalization is desirable as it captures the desire to maximize how often we see rare events which is precisely what we want the agent to seek.
+
+\subsection{Results}
+\label{sec:results}
+
+Using the above, we compare and contrast our method with random exploration over 25 episodes. We also compare our method which uses the Local Outlier Factors as an incentive with the similar method of using only the much less expensive computationally expensive $k$-distance (see Section~\ref{sec:local_outlier_factor}) as an incentive. We compare both the LOF based method and the $k$-distance based method using states and transitions as data points. Due to the variable computation time for each of the methods we report the average of 1000 independent runs of random exploration, 500 independent runs of the state and transition variants of the $k$-distance based exploration, and 300 independent runs of the state and transition variants of the LOF based exploration. With the data from these runs, we now discuss our key results.
+
+For our key results, we consider cumulative error after an episode to be the standard deviation of all state visitations before and within the episode. We further divide the cumulative error after an episode by the number of total visitations before and within the episode. By dividing by the total visitations, we get a metric for how evenly the agent visits the states over time. The result of this is shown in Figure~\ref{fig:cumulative_normalized_episodic_error}. There are some important things to note here. Firstly, after a short amount of time has passed, every method we proposed, with the expectation of the $k$-distance based method when it uses transitions, appears to be outperforming random exploration. This increase in performance provides the proof of concept that this method works to some degree. Secondly, the LOF based methods are outperforming the $k$-distance based methods. This difference in performance is likely indicative that the richer information provided by the LOF method justifies the additional computation. Lastly, the methods that use states are regularly outperforming the methods that use transitions. This likely indicates that using transitions in the gridworld is not a vastly better representation of locations within the environment than states. If that were the case then using transitions rather than states would just reduce the rate in which the reward for visiting a certain state decays. While this analysis provides us with a proof of concept, it is worth looking at the data in a few different ways to better understand what exactly is the relationship between these methods and how accurate this analysis is.
+
+\begin{figure}[hpt]
+    \centering
+    \includegraphics[height=10cm]{{cumulative_normalized_episodic_error.pdf}}
+    \caption{Cumulative Error After Each Episode Normalized by Number of Timesteps}
+    \label{fig:cumulative_normalized_episodic_error}
+\end{figure}
+
+We previously normalized the cumulative error by the number of timesteps in each episode. We now look at the cumulative error and the lengths of episodes separately. Figure~\ref{fig:cumulative_episodic_error} shows the cumulative error after each episode and Figure~\ref{fig:episodic_length} shows the lengths of episodes. Looking at Figure~\ref{fig:cumulative_episodic_error}, it now appears that the LOF using transitions is outperforming the LOF using states. In fact, it seems like the LOF using transitions is the only method outperforming random exploration. It becomes more evident why this figure appears to present this contradiction and why we were previously weighting by the total number of visitations when we look Figure~\ref{fig:episodic_length}. In Figure~\ref{fig:episodic_length} we see that the methods using transitions tend to have shorter episodes as time goes on whereas the methods using states tends to have longer episodes. It makes sense that the methods using state would tend towards having longer episodes as this would help it to explore the more distant states such as the true state $(4, 4)$. It somewhat unclear why the methods using transitions seem to have shorter episodes as time goes on but one possible reasoning is that the increased dimensionality of the space is reducing the speed at which the agent becomes uninterested in areas of the environment. These seemingly conflicting results show one of the issues that arise using an analysis based on episodes. In light of this, we now consider how these methods compare timestep to timestep.
+
+\begin{figure}[hpt]
+    \centering
+    \includegraphics[height=10cm]{{cumulative_episodic_error.pdf}}
+    \caption{Cumulative Error After Each Episode}
+    \label{fig:cumulative_episodic_error}
+\end{figure}
+
+\begin{figure}[hpt]
+    \centering
+    \includegraphics[height=10cm]{{episodic_length.pdf}}
+    \caption{Length of Episodes}
+    \label{fig:episodic_length}
+\end{figure}
+
+When comparing timesteps, we see similar trends to what we saw initially. Figure~\ref{fig:cumulative_error} shows the cumulative error at each timestep. The curves in Figure~\ref{fig:cumulative_error} continue until more than 75\% of runs have terminated. By cutting the curves at this point, we prevent the error bars from growing problematically large. The flaring of the error bars near the end of the curves in Figure~\ref{fig:cumulative_error} is in part due to this as the values are being computed only over runs that have not yet terminated. Figure~\ref{fig:cumulative_error} confirms our earlier analysis that the LOF metric is regularly outperforming random exploration when using either states or transitions. It also confirms our earlier analysis that, when using states, the $k$-distance method often outperforms random exploration. This plot does however cast doubts on the performance of these methods in the long run. This doubt provides additional motivation to explore the idea of retaining only a limited number of states or transitions as was briefly discussed in Section~\ref{sec:methods}. While this is an interesting contribution to our analysis, it is worth looking at the slopes of these curves to understand more fully why we have so far highlighted performance over episodes.
+
+\begin{figure}[hpt]
+    \centering
+    \includegraphics[height=10cm]{{cumulative_error.pdf}}
+    \caption{Cumulative Error at Each Timestep}
+    \label{fig:cumulative_error}
+\end{figure}
+
+Figure~\ref{fig:gradient_cumulative_error} shows the slope of this curve or the rate at which the cumulative error increase over timesteps. Like in Figure~\ref{fig:cumulative_error}, the curves in Figure~\ref{fig:gradient_cumulative_error} continue until more than 75\% of runs have terminated. There is little that can be derived from this figure given the size of the error bars. Our choice for the number of runs we do is based on reducing the error bars to the point where we can confidently discuss any improvements while still being efficient enough to work with the limited resources available. Reducing the error bars further would require significantly more computational power than was available. However, this is an interesting avenue of for future work.
+
+\begin{figure}[hpt]
+    \centering
+    \includegraphics[height=10cm]{{gradient_cumulative_error.pdf}}
+    \caption{Gradient of the Cumulative Error at Each Timestep}
+    \label{fig:gradient_cumulative_error}
+\end{figure}
+
+\end{document}
