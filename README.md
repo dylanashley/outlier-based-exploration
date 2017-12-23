@@ -2,7 +2,7 @@
 
 This project is a look into the potential of using Local Outlier Factors from Unsupervised Learning as a way of guiding exploration in a Reinforcement Learning Agent. The abstract of the resulting technical report reads:
 
-    We borrow the idea of Local Outlier Factors from Unsupervised Learning as a means of encouraging a Reinforcement Learning agent to explore uniformly. We show how this can be done and how it can be supplied to the agent as a simple reward signal. We also provide experimental results on a modified gridworld domain which gives strong evidence that this is a useful way of incentivizing uniform exploration. Finally, we discuss the key problems that have to be solved for this to be a practical method and how it can be further improved.
+> We borrow the idea of Local Outlier Factors from Unsupervised Learning as a means of encouraging a Reinforcement Learning agent to explore uniformly. We show how this can be done and how it can be supplied to the agent as a simple reward signal. We also provide experimental results on a modified gridworld domain which gives strong evidence that this is a useful way of incentivizing uniform exploration. Finally, we discuss the key problems that have to be solved for this to be a practical method and how it can be further improved.
 
 Included in this repository is the following:
 
