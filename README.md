@@ -10,6 +10,5 @@ Included in this repository is the following:
 - a presentation that was given on the topic
 - the LaTeX code used to compile the report
 - the source code for a series of experiments elaborated on in the report which can be run by executing `run.sh` in an appropriate system
-- the raw data produced by running the experiments mentioned above
 
 For any questions regarding this work email [Dylan R. Ashley](dashley@ualberta.ca).
